@@ -530,7 +530,7 @@ func (z *SortedSet) GetRank(key int64, reverse bool) (rank int64, score float64,
 	} else {
 		r--
 	}
-	return int64(r), v.score, v.attachment
+	return r, v.score, v.attachment
 
 }
 
@@ -574,6 +574,41 @@ func (z *SortedSet) Range(start, end int64, f func(float64, int64, interface{}))
 // RevRange implements ZREVRANGE
 func (z *SortedSet) RevRange(start, end int64, f func(float64, int64, interface{})) {
 	z.commonRange(start, end, true, f)
+}
+
+// find by score [start, end]
+func (z *SortedSet) RangeByScore(start, end float64, f func(float64, int64, interface{})) {
+	update := make([]*skipListNode, zSkiplistMaxlevel)
+	zsl := z.zsl
+	x := zsl.header
+	for i := zsl.level - 1; i >= 0; i-- {
+		for x.level[i].forward != nil {
+			if x.level[i].forward.score >= start {
+				break
+			}
+			x = x.level[i].forward
+		}
+		update[i] = x
+	}
+
+	/* Current node is the last with score < or <= min. */
+	x = x.level[0].forward
+
+	for x != nil {
+		if x.score > end {
+			break
+		}
+		next := x.level[0].forward
+
+		k := x.objID
+		s := x.score
+		f(s, k, z.dict[k].attachment)
+
+		// Here is where x->obj is actually released.
+		// And golang has GC, don't need to free manually anymore
+		//zslFreeNode(x)
+		x = next
+	}
 }
 
 func (z *SortedSet) commonRange(start, end int64, reverse bool, f func(float64, int64, interface{})) {

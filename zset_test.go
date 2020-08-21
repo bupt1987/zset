@@ -109,6 +109,29 @@ func TestRange(t *testing.T) {
 
 }
 
+func TestRangeByScore(t *testing.T) {
+	z := New()
+	z.Set(1.0, 1001, nil)
+	z.Set(2.0, 1002, nil)
+	z.Set(3.0, 1003, nil)
+	z.Set(4.0, 1004, nil)
+	z.Set(5.0, 1005, nil)
+	z.Set(6.0, 1006, nil)
+
+	ids := make([]int64, 0, 6)
+	z.RangeByScore(2.0, 5.0, func(score float64, k int64, _ interface{}) {
+		ids = append(ids, k)
+		t.Log(score, k)
+	})
+
+	if ids[0] != 1002 ||
+		ids[1] != 1003 ||
+		ids[2] != 1004 ||
+		ids[3] != 1005 {
+		t.Fail()
+	}
+}
+
 func BenchmarkSortedSet_Add(b *testing.B) {
 	b.StopTimer()
 	// data initialization
